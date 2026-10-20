@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';" />
+  <title>BPMN Modeler</title>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Toolbar ─────────────────────────────────────────────────────────── -->
+  <header id="toolbar">
+
+    <!-- File group -->
+    <div class="tb-group">
+      <button class="tb-btn" id="btn-new"  title="New diagram  Ctrl+N">
+        <svg viewBox="0 0 16 16"><path d="M3 1h7l4 4v10H3V1zm7 0v4h4"/></svg> New
+      </button>
+      <button class="tb-btn" id="btn-open" title="Open file  Ctrl+O">
+        <svg viewBox="0 0 16 16"><path d="M1 5h5l1.5 2H15v8H1V5z"/></svg> Open
+      </button>
+      <button class="tb-btn" id="btn-save" title="Save  Ctrl+S">
+        <svg viewBox="0 0 16 16"><path d="M2 1h9l3 3v11H2V1zm4 9h4m-2-2v4"/><rect x="4" y="1" width="6" height="5" rx="1"/></svg> Save
+      </button>
+    </div>
+
+    <div class="tb-sep"></div>
+
+    <!-- Edit group -->
+    <div class="tb-group">
+      <button class="tb-btn" id="btn-undo"  title="Undo  Ctrl+Z">↩ Undo</button>
+      <button class="tb-btn" id="btn-redo"  title="Redo  Ctrl+Shift+Z">↪ Redo</button>
+    </div>
+
+    <div class="tb-sep"></div>
+
+    <!-- Zoom group -->
+    <div class="tb-group">
+      <button class="tb-btn tb-btn-icon" id="btn-zoom-in"   title="Zoom in  Ctrl+=">＋</button>
+      <button class="tb-btn tb-btn-icon" id="btn-zoom-out"  title="Zoom out  Ctrl+–">－</button>
+      <button class="tb-btn"             id="btn-zoom-fit"  title="Fit diagram  Ctrl+Shift+H">⊡ Fit</button>
+      <button class="tb-btn tb-btn-icon" id="btn-zoom-reset" title="Reset zoom  Ctrl+0">1:1</button>
+    </div>
+
+    <div class="tb-sep"></div>
+
+    <!-- Feature group -->
+    <div class="tb-group">
+      <button class="tb-btn tb-btn-validate"  id="btn-validate"  title="Validate  Ctrl+Shift+L">
+        <svg viewBox="0 0 16 16"><rect x="2" y="2" width="12" height="12" rx="1.5"/><path d="M5 8l2.5 2.5L11 5"/></svg>
+        Validate
+      </button>
+      <button class="tb-btn tb-btn-xml"       id="btn-xml"       title="XML Editor  Ctrl+Shift+X">
+        <svg viewBox="0 0 16 16"><path d="M5 4L1 8l4 4M11 4l4 4-4 4M8 2l-2 12"/></svg>
+        XML
+      </button>
+      <button class="tb-btn tb-btn-minimap"   id="btn-minimap"   title="Minimap  Ctrl+M">⊞ Map</button>
+      <button class="tb-btn tb-btn-templates" id="btn-templates" title="Templates  Ctrl+Shift+T">
+        <svg viewBox="0 0 16 16"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+        Templates
+      </button>
+      <button class="tb-btn tb-btn-deploy"    id="btn-deploy"    title="Deploy to server  Ctrl+Shift+D">
+        <svg viewBox="0 0 16 16"><path d="M8 1v9M5 7l3 3 3-3M2 12v1a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-1"/></svg>
+        Deploy
+      </button>
+    </div>
+
+    <!-- Right: file label -->
+    <div class="tb-spacer"></div>
+    <span id="file-label" class="file-label">Unsaved diagram</span>
+
+  </header>
+
+  <!-- ── Main workspace ──────────────────────────────────────────────────── -->
+  <div id="workspace">
+
+    <!-- Left: palette collapse tab -->
+    <div id="palette-tab" class="panel-tab panel-tab-left" title="Toggle palette  Ctrl+Shift+P">
+      <span class="pt-icon">&#10094;</span>
+      <span class="pt-label">Tools</span>
+    </div>
+
+    <!-- Canvas -->
+    <div id="canvas"></div>
+
+    <!-- Right: properties collapse tab -->
+    <div id="props-tab" class="panel-tab panel-tab-right" title="Toggle properties  Ctrl+Shift+E">
+      <span class="pt-icon">&#8250;</span>
+      <span class="pt-label">Props</span>
+    </div>
+
+    <!-- Properties panel -->
+    <div id="properties-panel"></div>
+
+  </div>
+  <!-- lint panel, xml editor injected below workspace by JS -->
+
+  <!-- ── Deploy dialog ────────────────────────────────────────────────────── -->
+  <div id="deploy-overlay" class="overlay hidden" role="dialog" aria-modal="true">
+    <div class="dlg dlg-md">
+      <div class="dlg-header">
+        <span class="dlg-title">Deploy to Server</span>
+        <button class="dlg-close" id="deploy-close">✕</button>
+      </div>
+      <div class="dlg-body">
+        <div class="field">
+          <label>Server URL <span class="req">*</span></label>
+          <input id="deploy-url" class="inp" type="text" placeholder="http://localhost:8080/api/definitions/deploy" />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Method</label>
+            <select id="deploy-method" class="sel">
+              <option>POST</option><option>PUT</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Content-Type</label>
+            <select id="deploy-content-type" class="sel">
+              <option value="application/json">application/json (bpmn-engine API)</option>
+              <option value="application/xml">application/xml</option>
+              <option value="text/xml">text/xml</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Authorization</label>
+          <select id="deploy-auth-type" class="sel">
+            <option value="none">No Auth</option>
+            <option value="bearer">Bearer Token</option>
+            <option value="basic">Basic Auth</option>
+            <option value="apikey">API Key</option>
+            <option value="custom">Custom Header</option>
+          </select>
+        </div>
+        <div id="deploy-auth-bearer" class="auth-fields hidden">
+          <div class="field"><label>Token</label>
+            <input id="deploy-bearer-token" class="inp" type="password" placeholder="eyJhbGci…" /></div>
+        </div>
+        <div id="deploy-auth-basic" class="auth-fields hidden">
+          <div class="field-row">
+            <div class="field"><label>Username</label><input id="deploy-basic-user" class="inp" type="text" /></div>
+            <div class="field"><label>Password</label><input id="deploy-basic-pass" class="inp" type="password" /></div>
+          </div>
+        </div>
+        <div id="deploy-auth-apikey" class="auth-fields hidden">
+          <div class="field-row">
+            <div class="field"><label>Key name</label><input id="deploy-apikey-name" class="inp" type="text" placeholder="X-API-Key"/></div>
+            <div class="field"><label>Key value</label><input id="deploy-apikey-value" class="inp" type="password"/></div>
+          </div>
+          <div class="field"><label>Add to</label>
+            <select id="deploy-apikey-in" class="sel"><option value="header">Header</option><option value="query">Query param</option></select>
+          </div>
+        </div>
+        <div id="deploy-auth-custom" class="auth-fields hidden">
+          <div class="field-row">
+            <div class="field"><label>Header name</label><input id="deploy-custom-name" class="inp" type="text"/></div>
+            <div class="field"><label>Header value</label><input id="deploy-custom-value" class="inp" type="password"/></div>
+          </div>
+        </div>
+        <div class="section-title">Deployment Metadata <span class="optional">(optional)</span></div>
+        <div class="field-row">
+          <div class="field"><label>Deployment name</label><input id="deploy-name" class="inp" type="text" placeholder="my-process-v1"/></div>
+          <div class="field"><label>Process key</label><input id="deploy-process-key" class="inp" type="text" placeholder="myProcess"/></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Deployed by</label><input id="deploy-deployed-by" class="inp" type="text" placeholder="alice"/></div>
+          <div class="field"><label>Tenant ID</label><input id="deploy-tenant-id" class="inp" type="text" placeholder="tenant-a"/></div>
+        </div>
+        <div class="field"><label>Deploy message / changelog</label>
+          <input id="deploy-message" class="inp" type="text" placeholder="Initial version"/></div>
+        <div id="deploy-status" class="status-msg hidden"></div>
+      </div>
+      <div class="dlg-footer">
+        <button class="btn btn-ghost" id="deploy-cancel">Cancel</button>
+        <button class="btn btn-primary" id="deploy-submit">
+          <span id="deploy-submit-text">Deploy</span>
+          <span id="deploy-spinner" class="spinner hidden"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Find / Go-to dialog ──────────────────────────────────────────────── -->
+  <div id="find-overlay" class="overlay hidden" role="dialog">
+    <div class="dlg dlg-sm">
+      <div class="dlg-header">
+        <span class="dlg-title">Find Element</span>
+        <button class="dlg-close" id="find-close">✕</button>
+      </div>
+      <div class="dlg-body">
+        <div class="field">
+          <label>Element ID or name</label>
+          <input id="find-input" class="inp" type="text" placeholder="Task_1 or 'My Task'" autocomplete="off" />
+        </div>
+        <div id="find-results" class="find-results"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<script src="dist/bundle.js"></script>
+</body>
+</html>

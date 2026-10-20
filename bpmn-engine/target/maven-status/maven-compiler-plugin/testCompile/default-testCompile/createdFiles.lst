@@ -1,0 +1,8 @@
+com\bpmnengine\engine\ExclusiveGatewayHandlerTest.class
+com\bpmnengine\parser\BpmnXmlParserTest.class
+com\bpmnengine\PasswordGenerateTest.class
+com\bpmnengine\PasswordVerifyTest.class
+com\bpmnengine\engine\ProcessVersioningIntegrationTest.class
+com\bpmnengine\identity\service\IdentityServiceIntegrationTest.class
+com\bpmnengine\engine\expression\JuelExpressionEvaluatorTest.class
+com\bpmnengine\engine\VariableMapperTest.class

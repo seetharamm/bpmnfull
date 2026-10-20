@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sample BPMN 2.0 process: Employee Onboarding
+  Demonstrates: startEvent, userTask, serviceTask, exclusiveGateway,
+                parallelGateway, intermediateCatchEvent (timer),
+                boundaryEvent (timer), endEvent (terminate), callActivity
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:activiti="http://activiti.org/bpmn"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             targetNamespace="http://bpmnengine.com/samples"
+             id="EmployeeOnboarding">
+
+  <process id="employeeOnboarding" name="Employee Onboarding" isExecutable="true">
+
+    <!-- ── Start ─────────────────────────────────────────────────────────── -->
+    <startEvent id="start" name="New Hire Request"/>
+
+    <!-- ── HR Approval ──────────────────────────────────────────────────── -->
+    <userTask id="hrApproval" name="HR Approval"
+              activiti:assignee="hr_manager"
+              activiti:formKey="hr-approval-form">
+      <documentation>HR manager reviews and approves the new hire request</documentation>
+    </userTask>
+
+    <!-- Timer boundary: escalate if not approved within 2 days -->
+    <boundaryEvent id="escalationTimer" attachedToRef="hrApproval" cancelActivity="false">
+      <timerEventDefinition>
+        <timeDuration>P2D</timeDuration>
+      </timerEventDefinition>
+    </boundaryEvent>
+
+    <!-- ── Approval Decision ─────────────────────────────────────────────── -->
+    <exclusiveGateway id="approvalDecision" name="Approved?" default="rejectFlow"/>
+
+    <!-- ── Rejection path ───────────────────────────────────────────────── -->
+    <serviceTask id="sendRejectionEmail" name="Send Rejection Email"
+                 activiti:expression="${emailService.sendRejection(execution)}"/>
+    <endEvent id="rejectionEnd" name="Rejected"/>
+
+    <!-- ── Parallel onboarding tasks ─────────────────────────────────────── -->
+    <parallelGateway id="parallelStart" name="Start Parallel Onboarding"/>
+
+    <userTask id="itSetup" name="IT Setup"
+              activiti:candidateGroups="it_team"
+              activiti:formKey="it-setup-form"/>
+
+    <userTask id="accessCard" name="Access Card"
+              activiti:candidateGroups="security_team"/>
+
+    <serviceTask id="hrSystemUpdate" name="HR System Update"
+                 activiti:class="com.example.onboarding.HrSystemDelegate"/>
+
+    <parallelGateway id="parallelJoin" name="All Tasks Complete"/>
+
+    <!-- ── Welcome email ─────────────────────────────────────────────────── -->
+    <serviceTask id="sendWelcomeEmail" name="Send Welcome Email"
+                 activiti:expression="${emailService.sendWelcome(employeeId, employeeName)}"/>
+
+    <!-- ── End ───────────────────────────────────────────────────────────── -->
+    <endEvent id="end" name="Onboarding Complete">
+      <terminateEventDefinition/>
+    </endEvent>
+
+    <!-- ── Escalation path (from boundary timer) ─────────────────────────── -->
+    <serviceTask id="notifyManager" name="Notify Manager"
+                 activiti:expression="${notificationService.escalate(execution)}"/>
+
+    <!-- ────────────────────────────────────────────────────────────────────
+         Sequence Flows
+         ──────────────────────────────────────────────────────────────────── -->
+
+    <sequenceFlow id="sf_start_hr"         sourceRef="start"            targetRef="hrApproval"/>
+    <sequenceFlow id="sf_hr_decision"      sourceRef="hrApproval"       targetRef="approvalDecision"/>
+    <sequenceFlow id="approveFlow"         sourceRef="approvalDecision" targetRef="parallelStart">
+      <conditionExpression>${approved == true}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="rejectFlow"          sourceRef="approvalDecision" targetRef="sendRejectionEmail"/>
+    <sequenceFlow id="sf_reject_end"       sourceRef="sendRejectionEmail" targetRef="rejectionEnd"/>
+
+    <!-- Parallel fork -->
+    <sequenceFlow id="sf_par_it"           sourceRef="parallelStart"    targetRef="itSetup"/>
+    <sequenceFlow id="sf_par_card"         sourceRef="parallelStart"    targetRef="accessCard"/>
+    <sequenceFlow id="sf_par_hr"           sourceRef="parallelStart"    targetRef="hrSystemUpdate"/>
+
+    <!-- Parallel join -->
+    <sequenceFlow id="sf_it_join"          sourceRef="itSetup"          targetRef="parallelJoin"/>
+    <sequenceFlow id="sf_card_join"        sourceRef="accessCard"       targetRef="parallelJoin"/>
+    <sequenceFlow id="sf_hrupd_join"       sourceRef="hrSystemUpdate"   targetRef="parallelJoin"/>
+
+    <sequenceFlow id="sf_join_welcome"     sourceRef="parallelJoin"     targetRef="sendWelcomeEmail"/>
+    <sequenceFlow id="sf_welcome_end"      sourceRef="sendWelcomeEmail" targetRef="end"/>
+
+    <!-- Escalation boundary flow -->
+    <sequenceFlow id="sf_escalate"         sourceRef="escalationTimer"  targetRef="notifyManager"/>
+    <sequenceFlow id="sf_notify_end"       sourceRef="notifyManager"    targetRef="end"/>
+
+  </process>
+</definitions>
